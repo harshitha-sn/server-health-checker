@@ -11,7 +11,7 @@ A Flask-based monitoring dashboard that periodically checks HTTP endpoints, stor
 - **SQLite history** for charts (response time line, stepped uptime line).
 - **REST API** under `/api/*` for automation.
 - **Docker** and **docker-compose** with a persistent volume for the database.
-- **Jenkinsfile** with install, pytest, and Docker build stages (Linux shell).
+- **Jenkinsfile** for Docker-based Jenkins: `python`/`pip` (no venv), tests, and Docker build.
 
 ## Project layout
 
@@ -75,7 +75,7 @@ gunicorn --bind 0.0.0.0:5000 --workers 2 --threads 4 app:app
 
 ## Jenkins
 
-The included `Jenkinsfile` assumes a Linux agent with `python3`, `docker`, and shell (`sh`) available. On Windows-only agents, replace the `sh` blocks with `bat` equivalents or use the Docker agent label pattern from your organization.
+The `Jenkinsfile` uses a **Docker Pipeline** `agent { docker { ... } }` with `python:3.12-bookworm`, installs dependencies with **`python -m pip`** (no virtualenv), runs **`python -m pytest`**, then **`docker build`** using the host daemon via **`/var/run/docker.sock`** (typical for Jenkins in a Linux container on **Docker Desktop for Windows**). Ensure the **Docker Pipeline** plugin is installed and the Jenkins controller or agent can run Linux containers.
 
 ## Tests
 
