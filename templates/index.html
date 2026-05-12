@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Watchtower — Server Health</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>
+</head>
+<body>
+  <div id="app-loader" class="app-loader" aria-hidden="true">
+    <div class="loader-orbit"></div>
+  </div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <div class="brand-title">Watchtower</div>
+          <div class="brand-sub">Uptime monitoring</div>
+        </div>
+      </div>
+
+      <nav class="side-nav" aria-label="Primary">
+        <button type="button" class="nav-item active" data-view="dashboard">
+          <span class="nav-icon">◉</span> Dashboard
+        </button>
+        <button type="button" class="nav-item" data-view="targets">
+          <span class="nav-icon">⊕</span> Targets
+        </button>
+        <button type="button" class="nav-item" data-view="analytics">
+          <span class="nav-icon">▤</span> Analytics
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button type="button" class="btn btn-ghost btn-block" id="btn-theme" aria-pressed="false">
+          <span id="theme-label">Dark mode</span>
+        </button>
+        <div class="env-pill" title="Environment">
+          <span class="pulse-dot"></span>
+          <span id="env-name">Production</span>
+        </div>
+      </div>
+    </aside>
+
+    <div class="main-wrap">
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="page-title" id="page-title">Dashboard</h1>
+          <p class="page-sub" id="page-sub">Live status of your endpoints</p>
+        </div>
+        <div class="topbar-actions">
+          <div class="search-wrap">
+            <label class="sr-only" for="search-input">Filter servers</label>
+            <input type="search" id="search-input" class="input search-input" placeholder="Search URL or name…" autocomplete="off" />
+          </div>
+          <button type="button" class="btn btn-secondary" id="btn-refresh" title="Refresh now">
+            <span class="btn-icon spin-when-loading" aria-hidden="true">↻</span>
+            Refresh
+          </button>
+          <button type="button" class="btn btn-primary" id="btn-check-all">Check all</button>
+        </div>
+      </header>
+
+      <section class="stats-row" id="stats-row" aria-label="Summary">
+        <article class="stat-card shimmer">
+          <div class="stat-label">Monitored</div>
+          <div class="stat-value" id="stat-total">—</div>
+        </article>
+        <article class="stat-card stat-online shimmer">
+          <div class="stat-label">Online now</div>
+          <div class="stat-value" id="stat-online">—</div>
+        </article>
+        <article class="stat-card stat-checks shimmer">
+          <div class="stat-label">Total checks</div>
+          <div class="stat-value" id="stat-checks">—</div>
+        </article>
+        <article class="stat-card stat-next shimmer">
+          <div class="stat-label">Auto-refresh</div>
+          <div class="stat-value mono" id="stat-countdown">30s</div>
+        </article>
+      </section>
+
+      <main class="content">
+        <div class="view" id="view-dashboard">
+          <div class="cards-grid" id="servers-grid" aria-live="polite"></div>
+          <p class="empty-hint hidden" id="empty-hint">No targets yet. Add a URL from the sidebar or Targets tab.</p>
+        </div>
+
+        <div class="view hidden" id="view-targets">
+          <div class="panel">
+            <h2 class="panel-title">Add endpoint</h2>
+            <form id="form-add" class="form-grid">
+              <div class="field">
+                <label for="input-name">Display name</label>
+                <input class="input" id="input-name" name="name" type="text" placeholder="e.g. API Gateway" maxlength="120" />
+              </div>
+              <div class="field">
+                <label for="input-url">URL</label>
+                <input class="input mono" id="input-url" name="url" type="url" placeholder="https://example.com" required />
+              </div>
+              <div class="field field-actions">
+                <button type="submit" class="btn btn-primary">Add target</button>
+              </div>
+            </form>
+          </div>
+          <div class="panel">
+            <h2 class="panel-title">Registered targets</h2>
+            <div class="table-wrap">
+              <table class="data-table" id="targets-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>URL</th>
+                    <th>Status</th>
+                    <th>Last check</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="targets-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="view hidden" id="view-analytics">
+          <div class="panel chart-panel">
+            <div class="panel-head">
+              <h2 class="panel-title">Response time trend</h2>
+              <select id="chart-server-select" class="input select-narrow" aria-label="Server for chart"></select>
+            </div>
+            <div class="chart-canvas-wrap">
+              <canvas id="chart-response" height="120"></canvas>
+            </div>
+          </div>
+          <div class="panel chart-panel">
+            <div class="panel-head">
+              <h2 class="panel-title">Uptime (recent checks)</h2>
+            </div>
+            <div class="chart-canvas-wrap">
+              <canvas id="chart-uptime" height="120"></canvas>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer class="footer">
+        <span>REST API at <code class="mono">/api/servers</code></span>
+        <span class="sep">·</span>
+        <span id="last-sync">Never synced</span>
+      </footer>
+    </div>
+  </div>
+
+  <div class="notifications" id="notifications" aria-live="assertive" aria-relevant="additions"></div>
+</body>
+</html>
