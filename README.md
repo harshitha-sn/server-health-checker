@@ -11,7 +11,7 @@ A Flask-based monitoring dashboard that periodically checks HTTP endpoints, stor
 - **SQLite history** for charts (response time line, stepped uptime line).
 - **REST API** under `/api/*` for automation.
 - **Docker** and **docker-compose** with a persistent volume for the database.
-- **Jenkinsfile** for standard Jenkins (`agent any`): `python`/`pip` (no venv), tests, and Docker build.
+- **Jenkinsfile** with `agent any`, **Docker Pipeline** `python:3.12` for install/test stages, and a separate **Docker Build** on the agent.
 
 ## Project layout
 
@@ -75,7 +75,7 @@ gunicorn --bind 0.0.0.0:5000 --workers 2 --threads 4 app:app
 
 ## Jenkins
 
-The `Jenkinsfile` uses **`agent any`** and Linux **`sh`** steps: Checkout, **Install Dependencies** (`python -m pip install -r requirements.txt`), **Run Tests** (`python -m pytest`), and **Docker Build** (`docker build`). Your Jenkins agent needs **`python`**, **`pip`**, and the **`docker`** CLI available on `PATH` for those stages (typical on a Linux worker with Docker installed).
+The `Jenkinsfile` uses **`agent any`**. **Checkout** runs on the default agent. **Install Dependencies** and **Run Tests** each use **`agent { docker { image 'python:3.12' } }`** with **`sh`**: `pip install -r requirements.txt`, then **`pytest`** (the test stage repeats `pip install` because each Docker stage is a fresh container). **Docker Build** runs on the same worker with **`docker build`** — install the **Docker Pipeline** plugin, put **`docker`** on the agent `PATH`, and when Jenkins itself runs in Docker, mount **`/var/run/docker.sock`** (or equivalent) so sibling containers and image builds work.
 
 ## Tests
 

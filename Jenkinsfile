@@ -1,6 +1,13 @@
 /*
- * Declarative pipeline for a standard Jenkins installation (Linux agent, `sh`).
- * Expects `python`, `pip`, and `docker` on the agent PATH where those stages need them.
+ * Declarative pipeline: top-level `agent any` (typical Jenkins worker / controller executor).
+ * Install Dependencies and Run Tests run inside `python:3.12` containers (Docker Pipeline plugin).
+ * Docker Build runs on the host agent so `docker` can build the project image.
+ *
+ * Jenkins-in-Docker: mount the host Docker socket into the Jenkins agent container and
+ * install the Docker CLI there so `docker build` and per-stage `docker { ... }` work.
+ *
+ * Note: each `docker { image ... }` stage starts a new container, so Run Tests repeats
+ * `pip install` before `pytest` so dependencies exist in that container.
  */
 
 pipeline {
@@ -19,17 +26,27 @@ pipeline {
         }
 
         stage('Install Dependencies') {
+            agent {
+                docker {
+                    image 'python:3.12'
+                }
+            }
             steps {
-                sh '''
-                    python -m pip install --upgrade pip
-                    python -m pip install -r requirements.txt
-                '''
+                sh 'pip install -r requirements.txt'
             }
         }
 
         stage('Run Tests') {
+            agent {
+                docker {
+                    image 'python:3.12'
+                }
+            }
             steps {
-                sh 'python -m pytest -q'
+                sh '''
+                    pip install -r requirements.txt
+                    pytest
+                '''
             }
         }
 
