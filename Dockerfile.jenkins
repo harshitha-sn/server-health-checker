@@ -1,6 +1,4 @@
 # Jenkins controller: LTS + Docker CLI + Python + Blue Ocean + Prometheus metrics plugin.
-# Build:  docker build -f Dockerfile.jenkins -t server-health-checker-jenkins:lts .
-# Full stack: docker compose up -d --build
 FROM jenkins/jenkins:lts-jdk17
 
 USER root
@@ -25,11 +23,11 @@ RUN ln -sf /usr/bin/python3 /usr/local/bin/python
 
 RUN usermod -aG docker jenkins
 
-RUN test -x /usr/bin/docker && docker --version
+# Fail the build if the Debian docker.io client is missing (avoids silent "docker: not found" in jobs).
+RUN test -x /usr/bin/docker && /usr/bin/docker --version
 
-# Pre-install plugins (Blue Ocean UI + Prometheus scrape endpoint + Pipeline essentials).
-# Requires network during `docker build`.
 USER jenkins
+
 RUN jenkins-plugin-cli --plugins \
     blueocean \
     docker-workflow \

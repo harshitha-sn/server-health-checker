@@ -33,7 +33,9 @@ services:
     volumes:
       - watchtower-data:/data
     networks:
-      - shc-platform
+      shc-platform:
+        aliases:
+          - web
     healthcheck:
       test:
         [
@@ -61,14 +63,18 @@ services:
       - "50000:50000"
     volumes:
       - jenkins_home:/var/jenkins_home
-      - //var/run/docker.sock:/var/run/docker.sock
+      # Host Docker API. Linux: /var/run/docker.sock. If bind fails on Docker Desktop (Windows), use:
+      #   //var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       TZ: UTC
       JAVA_OPTS: "-Djenkins.install.runSetupWizard=true -Dhudson.model.DirectoryBrowserSupport.CSP="
     group_add:
       - "${DOCKER_SOCK_GID:-999}"
     networks:
-      - shc-platform
+      shc-platform:
+        aliases:
+          - jenkins
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/login >/dev/null || exit 1"]
       interval: 30s
@@ -94,11 +100,15 @@ services:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     networks:
-      - shc-platform
+      shc-platform:
+        aliases:
+          - prometheus
     depends_on:
       web:
         condition: service_healthy
       cadvisor:
+        condition: service_started
+      jenkins:
         condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9090/-/ready >/dev/null || exit 1"]
@@ -126,7 +136,9 @@ services:
       - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
     networks:
-      - shc-platform
+      shc-platform:
+        aliases:
+          - grafana
     depends_on:
       prometheus:
         condition: service_healthy
@@ -153,7 +165,9 @@ services:
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
     networks:
-      - shc-platform
+      shc-platform:
+        aliases:
+          - cadvisor
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz >/dev/null || exit 1"]
       interval: 30s
@@ -172,7 +186,7 @@ services:
       - "127.0.0.1:8999:9000"
       - "127.0.0.1:8998:9443"
     volumes:
-      - //var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data
     networks:
       - shc-platform
@@ -184,7 +198,7 @@ services:
     container_name: shc-watchtower
     restart: unless-stopped
     volumes:
-      - //var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       WATCHTOWER_CLEANUP: "true"
       WATCHTOWER_LABEL_ENABLE: "true"

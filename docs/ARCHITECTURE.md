@@ -75,6 +75,30 @@ flowchart TB
 | `shc_grafana_data` | Grafana DB, users, preferences |
 | `shc_portainer_data` | Portainer configuration |
 
+## Prometheus & Grafana verification
+
+Compose attaches monitored services to **`shc-platform`** and sets **network aliases** (`web`, `jenkins`, `cadvisor`, `prometheus`) so `infra/prometheus/prometheus.yml` scrapes by **Compose service hostname** — not `localhost` from other containers.
+
+### Restart after changing `prometheus.yml`
+
+```bash
+docker compose up -d prometheus grafana
+```
+
+Or reload Prometheus in place (requires `--web.enable-lifecycle`):
+
+```bash
+docker exec shc-prometheus wget -qO- --post-data="" http://127.0.0.1:9090/-/reload
+```
+
+### Checklist
+
+1. **Targets** — Open [http://localhost:9091/targets](http://localhost:9091/targets) (host **9091** → container **9090**).
+2. **UP** — `prometheus`, `cadvisor`, and `flask` should turn **UP** within ~30s once `web` is healthy.
+3. **Jenkins** — Often **DOWN** until the setup wizard completes. **403** on `/prometheus` means Jenkins is blocking anonymous access: for a lab, grant **Overall / Read** to **Anonymous** under **Manage Jenkins → Configure Global Security**, or add `basic_auth` to the `jenkins` scrape job in `prometheus.yml`.
+4. **Graph** — In Prometheus **Graph**, run `up` or `container_cpu_usage_seconds_total` to confirm samples exist.
+5. **Grafana** — **Connections → Data sources → Prometheus → Save & test** must succeed; dashboards live under **SHC Platform**.
+
 ## Security notes (submission / lab)
 
 - Change **Grafana** and **Jenkins** passwords immediately after first login.

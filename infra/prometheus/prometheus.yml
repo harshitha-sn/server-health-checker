@@ -1,26 +1,47 @@
-# Prometheus — scrape config for the SHC DevOps stack
+# Prometheus — scrape config for the SHC DevOps stack (Docker Compose network `shc-platform`).
+#
+# Use Docker Compose *service* hostnames (NOT localhost from other containers):
+#   prometheus  — this Prometheus process (port 9090 inside container; host maps 9091)
+#   web         — Flask + Gunicorn (port 5000), metrics at /metrics
+#   cadvisor    — container metrics (port 8080), metrics at /metrics
+#   jenkins     — Jenkins Prometheus plugin (port 8080), metrics at /prometheus
+#
+# If a target stays DOWN:
+#   - Jenkins: complete setup wizard; allow anonymous read of metrics (see README / ARCHITECTURE).
+#   - Confirm all services attach to network `shc-platform` and aliases exist in docker-compose.yml.
+
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
 scrape_configs:
+  # Self-monitoring (scrape this Prometheus server via Compose DNS name).
   - job_name: prometheus
     static_configs:
-      - targets: ["localhost:9090"]
+      - targets: ["prometheus:9090"]
 
   - job_name: cadvisor
+    metrics_path: /metrics
+    scheme: http
+    scrape_timeout: 15s
     static_configs:
       - targets: ["cadvisor:8080"]
 
   - job_name: flask
     metrics_path: /metrics
+    scheme: http
+    scrape_timeout: 15s
     static_configs:
       - targets: ["web:5000"]
 
-  # Requires Jenkins "Prometheus metrics" plugin (pre-baked in Dockerfile.jenkins).
-  # If you see 403/401, allow anonymous read of metrics in Jenkins or add basic_auth here.
+  # Jenkins "Prometheus metrics" plugin (installed in Dockerfile.jenkins).
+  # Security: if scrape returns 403, configure Jenkins to allow unauthenticated metrics
+  # or add basic_auth below (see Prometheus docs).
   - job_name: jenkins
     metrics_path: /prometheus
+    scheme: http
     scrape_interval: 30s
+    scrape_timeout: 25s
+    honor_timestamps: true
     static_configs:
       - targets: ["jenkins:8080"]

@@ -10,7 +10,9 @@ pipeline {
         PIP_DISABLE_PIP_VERSION_CHECK = '1'
         PIP_BREAK_SYSTEM_PACKAGES = '1'
         PYTHONPATH = "${WORKSPACE}"
-        PATH = "${HOME}/.local/bin:/usr/local/bin:/usr/bin:/bin:${PATH}"
+        // Must use env.PATH — bare ${PATH} in Groovy is null and strips system dirs (docker lives in /usr/bin).
+        PATH = "${HOME}/.local/bin:/usr/local/bin:/usr/bin:/bin:${env.PATH}"
+        DOCKER_HOST = 'unix:///var/run/docker.sock'
     }
 
     stages {
@@ -47,8 +49,33 @@ pipeline {
             steps {
                 sh '''
                     set -eu
-                    command -v docker
-                    docker version
+                    echo "=== Docker CI diagnostics ==="
+                    echo "PATH=${PATH}"
+                    echo "DOCKER_HOST=${DOCKER_HOST:-}"
+                    test -S /var/run/docker.sock && echo "OK: /var/run/docker.sock is a socket" || echo "WARN: /var/run/docker.sock missing (mount host socket in compose)"
+
+                    DOCKER_BIN=""
+                    if command -v docker >/dev/null 2>&1; then
+                      DOCKER_BIN=$(command -v docker)
+                    elif [ -x /usr/bin/docker ]; then
+                      DOCKER_BIN=/usr/bin/docker
+                    elif [ -x /bin/docker ]; then
+                      DOCKER_BIN=/bin/docker
+                    fi
+
+                    if [ -z "${DOCKER_BIN}" ]; then
+                      echo ""
+                      echo "ERROR: Docker CLI not found in this Jenkins container."
+                      echo "Fix: rebuild the controller image (docker.io is in Dockerfile.jenkins):"
+                      echo "  docker compose build --no-cache jenkins && docker compose up -d jenkins"
+                      echo ""
+                      ls -la /usr/bin/docker /bin/docker 2>/dev/null || true
+                      exit 127
+                    fi
+
+                    echo "Using Docker CLI: ${DOCKER_BIN}"
+                    "${DOCKER_BIN}" --version
+                    "${DOCKER_BIN}" version
                 '''
             }
         }
@@ -61,7 +88,15 @@ pipeline {
                 sh '''
                     set -eu
                     cd "${WORKSPACE}"
-                    docker build -t server-health-checker:${BUILD_NUMBER} .
+                    if command -v docker >/dev/null 2>&1; then
+                      DOCKER_BIN=$(command -v docker)
+                    elif [ -x /usr/bin/docker ]; then
+                      DOCKER_BIN=/usr/bin/docker
+                    else
+                      echo "ERROR: Docker CLI not found — cannot build image."
+                      exit 127
+                    fi
+                    "${DOCKER_BIN}" build -t server-health-checker:${BUILD_NUMBER} .
                 '''
             }
         }
