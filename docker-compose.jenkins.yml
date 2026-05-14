@@ -1,0 +1,35 @@
+# CI-only Jenkins (optional). Prefer the unified stack in docker-compose.yml which adds
+# Prometheus, Grafana, cAdvisor, Portainer, and Watchtower on network `shc-platform`.
+#
+# Start Jenkins alone:
+#   $env:DOCKER_SOCK_GID = (docker run --rm -v //var/run/docker.sock:/var/run/docker.sock alpine stat -c '%g' /var/run/docker.sock)
+#   docker compose -f docker-compose.jenkins.yml up -d --build
+#
+# UI: http://localhost:9090  |  Blue Ocean: http://localhost:9090/blue
+
+services:
+  jenkins:
+    build:
+      context: .
+      dockerfile: Dockerfile.jenkins
+    image: server-health-checker-jenkins:lts
+    container_name: jenkins-server-health-checker
+    restart: unless-stopped
+    ports:
+      - "9090:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - //var/run/docker.sock:/var/run/docker.sock
+    environment:
+      TZ: UTC
+    group_add:
+      - "${DOCKER_SOCK_GID:-999}"
+
+networks:
+  default:
+    name: jenkins-shc-net
+
+volumes:
+  jenkins_home:
+    name: jenkins_server_health_checker_home

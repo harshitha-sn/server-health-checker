@@ -5,7 +5,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     FLASK_APP=app:app \
-    DATABASE_PATH=/data/healthchecker.db
+    DATABASE_PATH=/data/healthchecker.db \
+    PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus_multiproc
 
 WORKDIR /app
 
@@ -16,7 +17,8 @@ COPY app.py db.py health_service.py ./
 COPY templates ./templates
 COPY static ./static
 
-RUN mkdir -p /data
+RUN mkdir -p /data /tmp/prometheus_multiproc \
+    && chmod 1777 /tmp/prometheus_multiproc
 
 EXPOSE 5000
 

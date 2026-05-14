@@ -1,0 +1,26 @@
+# Prometheus — scrape config for the SHC DevOps stack
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["cadvisor:8080"]
+
+  - job_name: flask
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["web:5000"]
+
+  # Requires Jenkins "Prometheus metrics" plugin (pre-baked in Dockerfile.jenkins).
+  # If you see 403/401, allow anonymous read of metrics in Jenkins or add basic_auth here.
+  - job_name: jenkins
+    metrics_path: /prometheus
+    scrape_interval: 30s
+    static_configs:
+      - targets: ["jenkins:8080"]

@@ -1,14 +1,39 @@
-# Local / demo stack: Flask + persisted SQLite volume
+# Server Health Checker — full DevOps stack (Flask + Jenkins + observability + ops)
+#
+# Prerequisites: Docker Desktop (Windows/macOS) or Docker Engine (Linux).
+#
+# Start everything:
+#   PowerShell (socket GID for Jenkins docker CLI — optional on Linux if 999 works):
+#     $env:DOCKER_SOCK_GID = (docker run --rm -v //var/run/docker.sock:/var/run/docker.sock alpine stat -c '%g' /var/run/docker.sock)
+#   docker compose up -d --build
+#
+# URLs (host):
+#   Flask       http://localhost:5000
+#   Jenkins     http://localhost:9090   Blue Ocean: http://localhost:9090/blue
+#   Grafana     http://localhost:3000   (admin / see GRAFANA_ADMIN_PASSWORD)
+#   Prometheus  http://localhost:9091
+#   cAdvisor    http://localhost:8081
+#   Portainer   http://127.0.0.1:8999  (bound to localhost — safer)
+#
+# Default Grafana credentials: admin / admin — change via .env (see .env.example).
+
+name: server-health-checker
+
 services:
   web:
     build: .
+    image: server-health-checker-web:latest
+    container_name: shc-web
+    restart: unless-stopped
     ports:
       - "5000:5000"
     environment:
       DATABASE_PATH: /data/healthchecker.db
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus_multiproc
     volumes:
       - watchtower-data:/data
-    restart: unless-stopped
+    networks:
+      - shc-platform
     healthcheck:
       test:
         [
@@ -20,7 +45,170 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+      start_period: 15s
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+  jenkins:
+    build:
+      context: .
+      dockerfile: Dockerfile.jenkins
+    image: server-health-checker-jenkins:lts
+    container_name: shc-jenkins
+    restart: unless-stopped
+    ports:
+      - "9090:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - //var/run/docker.sock:/var/run/docker.sock
+    environment:
+      TZ: UTC
+      JAVA_OPTS: "-Djenkins.install.runSetupWizard=true -Dhudson.model.DirectoryBrowserSupport.CSP="
+    group_add:
+      - "${DOCKER_SOCK_GID:-999}"
+    networks:
+      - shc-platform
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/login >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    labels:
+      - com.centurylinklabs.watchtower.enable=false
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: shc-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+      - --web.console.libraries=/usr/share/prometheus/console_libraries
+      - --web.console.templates=/usr/share/prometheus/consoles
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - shc-platform
+    depends_on:
+      web:
+        condition: service_healthy
+      cadvisor:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9090/-/ready >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: shc-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3000}
+      GF_INSTALL_PLUGINS: ""
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      - shc-platform
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/api/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: shc-cadvisor
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "8081:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    networks:
+      - shc-platform
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
       start_period: 10s
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+  portainer:
+    image: portainer/portainer-ce:2.21.4
+    container_name: shc-portainer
+    restart: unless-stopped
+    command: -H unix:///var/run/docker.sock
+    ports:
+      - "127.0.0.1:8999:9000"
+      - "127.0.0.1:8998:9443"
+    volumes:
+      - //var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    networks:
+      - shc-platform
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+  watchtower:
+    image: containrrr/watchtower:1.7.1
+    container_name: shc-watchtower
+    restart: unless-stopped
+    volumes:
+      - //var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_LABEL_ENABLE: "true"
+      WATCHTOWER_INCLUDE_RESTARTING: "true"
+      WATCHTOWER_SCHEDULE: "0 0 3 * * *"
+      TZ: UTC
+    networks:
+      - shc-platform
+    labels:
+      - com.centurylinklabs.watchtower.enable=false
+
+networks:
+  shc-platform:
+    name: shc-platform
+    driver: bridge
 
 volumes:
   watchtower-data:
+    name: shc_sqlite_data
+  jenkins_home:
+    name: shc_jenkins_home
+  prometheus_data:
+    name: shc_prometheus_data
+  grafana_data:
+    name: shc_grafana_data
+  portainer_data:
+    name: shc_portainer_data

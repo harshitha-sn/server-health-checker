@@ -1,0 +1,245 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [
+    {
+      "title": "Flask app",
+      "url": "http://localhost:5000",
+      "type": "link",
+      "icon": "external link"
+    },
+    {
+      "title": "Jenkins (Blue Ocean)",
+      "url": "http://localhost:9090/blue",
+      "type": "link",
+      "icon": "external link"
+    }
+  ],
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "SHC-Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [{ "type": "value", "value": "0", "text": "DOWN" }, { "type": "value", "value": "1", "text": "UP" }],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          },
+          "unit": "none"
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "textMode": "value" },
+      "targets": [{ "expr": "up{job=\"flask\"}", "legendFormat": "Flask", "refId": "A" }],
+      "title": "Flask scrape",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "SHC-Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [{ "type": "value", "value": "0", "text": "DOWN" }, { "type": "value", "value": "1", "text": "UP" }],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "id": 2,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "textMode": "value" },
+      "targets": [{ "expr": "up{job=\"jenkins\"}", "legendFormat": "Jenkins", "refId": "A" }],
+      "title": "Jenkins scrape",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "SHC-Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [{ "type": "value", "value": "0", "text": "DOWN" }, { "type": "value", "value": "1", "text": "UP" }],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "id": 3,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "textMode": "value" },
+      "targets": [{ "expr": "up{job=\"cadvisor\"}", "legendFormat": "cAdvisor", "refId": "A" }],
+      "title": "cAdvisor scrape",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "SHC-Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "drawStyle": "line",
+            "fillOpacity": 25,
+            "lineWidth": 2,
+            "showPoints": "never"
+          },
+          "unit": "reqps"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "id": 4,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{job=\"flask\"}[5m])) by (handler, method)",
+          "legendFormat": "{{method}} {{handler}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Flask — HTTP request rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "SHC-Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "lineWidth": 2,
+            "showPoints": "never"
+          },
+          "unit": "s"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "id": 5,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"flask\"}[5m])) by (le, handler))",
+          "legendFormat": "p95 {{handler}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Flask — HTTP latency p95",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "SHC-Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never"
+          },
+          "unit": "percentunit"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "id": 6,
+      "options": { "legend": { "displayMode": "table", "placement": "right" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "sum(rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service!=\"\"}[5m])) by (container_label_com_docker_compose_service)",
+          "legendFormat": "{{container_label_com_docker_compose_service}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Containers — CPU usage rate (by Compose service)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "SHC-Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never"
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "id": 7,
+      "options": { "legend": { "displayMode": "table", "placement": "right" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "container_memory_usage_bytes{container_label_com_docker_compose_service!=\"\"}",
+          "legendFormat": "{{container_label_com_docker_compose_service}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Containers — memory (by Compose service)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "SHC-Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "lineWidth": 2,
+            "showPoints": "never"
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+      "id": 8,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "jenkins_queue_size_value",
+          "legendFormat": "Queue size",
+          "refId": "A"
+        },
+        {
+          "expr": "jenkins_executor_in_use",
+          "legendFormat": "Executors in use ({{label}})",
+          "refId": "B"
+        }
+      ],
+      "title": "Jenkins — queue & executors (Prometheus plugin)",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "15s",
+  "schemaVersion": 39,
+  "tags": ["shc", "devops"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "SHC — Platform overview",
+  "uid": "shc-overview",
+  "version": 1,
+  "weekStart": ""
+}

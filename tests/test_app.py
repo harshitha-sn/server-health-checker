@@ -42,3 +42,10 @@ def test_duplicate_url_conflict(client):
     client.post("/api/servers", json={"name": "A", "url": "https://dup.test"})
     res = client.post("/api/servers", json={"name": "B", "url": "https://dup.test"})
     assert res.status_code == 409
+
+
+def test_prometheus_metrics_endpoint(client):
+    res = client.get("/metrics")
+    assert res.status_code == 200
+    body = res.data.decode()
+    assert "# HELP" in body or "# TYPE" in body

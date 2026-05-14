@@ -9,6 +9,7 @@ import re
 from typing import Any
 
 from flask import Flask, jsonify, render_template, request
+from prometheus_flask_exporter import PrometheusMetrics
 
 import db
 from health_service import HealthResult, check_url, normalize_url
@@ -23,6 +24,9 @@ def create_app() -> Flask:
         template_folder="templates",
     )
     app.config["JSON_SORT_KEYS"] = False
+
+    # Prometheus metrics at /metrics (use PROMETHEUS_MULTIPROC_DIR with Gunicorn multi-worker)
+    PrometheusMetrics(app, path="/metrics")
 
     @app.errorhandler(404)
     def not_found(_e):
