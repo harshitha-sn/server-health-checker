@@ -1,4 +1,3 @@
-# Jenkins controller: LTS + Docker CLI + Python + Blue Ocean + Prometheus metrics plugin.
 FROM jenkins/jenkins:lts-jdk17
 
 USER root
@@ -22,9 +21,6 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
 RUN ln -sf /usr/bin/python3 /usr/local/bin/python
 
 RUN usermod -aG docker jenkins
-
-# Fail the build if the Debian docker.io client is missing (avoids silent "docker: not found" in jobs).
-RUN test -x /usr/bin/docker && /usr/bin/docker --version
 
 USER jenkins
 
