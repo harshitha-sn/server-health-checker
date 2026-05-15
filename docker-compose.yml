@@ -63,8 +63,6 @@ services:
       - "50000:50000"
     volumes:
       - jenkins_home:/var/jenkins_home
-      # Host Docker API. Linux: /var/run/docker.sock. If bind fails on Docker Desktop (Windows), use:
-      #   //var/run/docker.sock:/var/run/docker.sock
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       TZ: UTC
@@ -76,7 +74,11 @@ services:
         aliases:
           - jenkins
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/login >/dev/null || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS http://127.0.0.1:8080/login >/dev/null || exit 1",
+        ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -111,7 +113,11 @@ services:
       jenkins:
         condition: service_started
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9090/-/ready >/dev/null || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:9090/-/ready >/dev/null || exit 1",
+        ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -143,7 +149,11 @@ services:
       prometheus:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/api/health >/dev/null || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS http://127.0.0.1:3000/api/health >/dev/null || exit 1",
+        ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -169,7 +179,11 @@ services:
         aliases:
           - cadvisor
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz >/dev/null || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:8080/healthz >/dev/null || exit 1",
+        ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -194,7 +208,7 @@ services:
       - com.centurylinklabs.watchtower.enable=true
 
   watchtower:
-  image: containrrr/watchtower:latest
+    image: containrrr/watchtower:latest
     container_name: shc-watchtower
     restart: unless-stopped
     volumes:
@@ -218,11 +232,15 @@ networks:
 volumes:
   watchtower-data:
     name: shc_sqlite_data
+
   jenkins_home:
     name: shc_jenkins_home
+
   prometheus_data:
     name: shc_prometheus_data
+
   grafana_data:
     name: shc_grafana_data
+
   portainer_data:
     name: shc_portainer_data
